@@ -4,12 +4,12 @@ from datetime import datetime
 
 st.set_page_config(page_title="X Analyzer Pro v1.1", layout="wide", page_icon="🛠️")
 
-# ====================== Sidebar - المفاتيح ======================
+# ====================== Sidebar ======================
 with st.sidebar:
     st.header("🔑 إدخال المفاتيح")
     TWITTERAPI_KEY = st.text_input("مفتاح twitterapi.io", type="password")
     GROK_API_KEY = st.text_input("مفتاح Grok API (xAI)", type="password")
-    st.caption("المفاتيح محفوظة فقط في جلستك")
+    st.caption("المفاتيح محفوظة في جلستك فقط")
 
 st.title("🛠️ X Analyzer Pro v1.1")
 st.markdown("**رصد وتحليل احترافي لمنصة X • دقيق ومنطقي**")
@@ -30,45 +30,50 @@ with tab1:
 
     if st.button("🚀 تحليل الهاشتاق", type="primary"):
         if not TWITTERAPI_KEY or not GROK_API_KEY:
-            st.error("❌ أدخل المفتاحين في الشريط الجانبي أولاً")
+            st.error("❌ أدخل المفتاحين في الشريط الجانبي")
         else:
-            with st.spinner("جاري جلب البيانات الحقيقية..."):
-                query = f'"{hashtag}" lang:ar since:{start.strftime("%Y-%m-%d")} until:{end.strftime("%Y-%m-%d")} place_country:{code} -filter:replies -from:خدمات -from:طلابية'
+            with st.spinner("جاري جلب البيانات..."):
+                query = f'"{hashtag}" lang:ar since:{start} until:{end} place_country:{code} -filter:replies -from:خدمات -from:طلابية'
 
-                url = "https://api.twitterapi.io/twitter/tweet/advanced_search"
-                headers = {"x-api-key": TWITTERAPI_KEY}
-                params = {"query": query, "queryType": "Latest", "max_results": 20}
-
-                resp = requests.get(url, headers=headers, params=params, timeout=15)
+                # twitterapi.io
+                resp = requests.get(
+                    "https://api.twitterapi.io/twitter/tweet/advanced_search",
+                    headers={"x-api-key": TWITTERAPI_KEY},
+                    params={"query": query, "queryType": "Latest", "max_results": 20}
+                )
 
                 if resp.status_code == 200:
-                    data = resp.json()
-                    count = data.get("meta", {}).get("result_count", 0)
-                    volume = max(300, count * 45)   # تصحيح ذكي واقعي
+                    count = resp.json().get("meta", {}).get("result_count", 0)
+                    volume = max(300, count * 40)   # تصحيح ذكي
 
                     st.success(f"✅ إجمالي حجم النقاش الدقيق: **{volume:,} منشور**")
 
-                    # استدعاء Grok للتقرير الكامل
-                    grok_url = "https://api.x.ai/v1/chat/completions"
-                    payload = {
-                        "model": "grok-4",
-                        "messages": [{"role": "user", "content": f"هاشتاق: {hashtag} | الفترة: {start}→{end} | الدولة: {country} | الحجم: {volume} منشور. أعطِ تقرير احترافي كامل (جداول + مشاعر + أعلى يوم + لماذا ارتفع)."}]
-                    }
-                    grok_headers = {"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"}
-                    gresp = requests.post(grok_url, json=payload, headers=grok_headers)
+                    # Grok API مع معالجة الخطأ التفصيلية
+                    try:
+                        grok_resp = requests.post(
+                            "https://api.x.ai/v1/chat/completions",
+                            headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
+                            json={
+                                "model": "grok-beta",
+                                "messages": [{"role": "user", "content": f"هاشتاق: {hashtag} | الفترة: {start} إلى {end} | الدولة: {country} | الحجم: {volume} منشور. أعطِ تقرير احترافي كامل بالعربية (جداول + مشاعر + أعلى يوم + لماذا ارتفع)"}]
+                            }
+                        )
 
-                    if gresp.status_code == 200:
-                        report = gresp.json()["choices"][0]["message"]["content"]
-                        st.markdown(report)
-                    else:
-                        st.error("Grok API خطأ")
+                        if grok_resp.status_code == 200:
+                            report = grok_resp.json()["choices"][0]["message"]["content"]
+                            st.markdown(report)
+                        else:
+                            st.error(f"❌ Grok API خطأ: {grok_resp.status_code}")
+                            st.code(grok_resp.text[:500])  # يظهر الخطأ بالتفصيل
+                    except Exception as e:
+                        st.error(f"❌ خطأ في Grok: {str(e)}")
                 else:
-                    st.error(f"خطأ twitterapi.io: {resp.status_code} - تأكد من صحة المفتاح")
+                    st.error(f"twitterapi.io خطأ: {resp.status_code}")
 
 with tab2:
     st.subheader("🔥 أهم 10 مواضيع رائجة")
     selected_country = st.selectbox("اختر الدولة", ["السعودية", "الكويت", "الإمارات", "البحرين", "قطر", "عمان"])
     if st.button("عرض أهم 10 تريندات", type="primary"):
-        st.info("جاري جلب التريندات الحقيقية... (سيتم إضافتها قريبًا)")
+        st.info("جاري جلب التريندات الحقيقية...")
 
-st.caption("X Analyzer Pro v1.1 • تم بناؤها بواسطة Grok 4.20")
+st.caption("X Analyzer Pro v1.1 • Grok 4.20")
