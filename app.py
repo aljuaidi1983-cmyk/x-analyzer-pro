@@ -32,8 +32,8 @@ with tab1:
         if not TWITTERAPI_KEY or not GROK_API_KEY:
             st.error("❌ أدخل المفتاحين في الشريط الجانبي")
         else:
-            with st.spinner("جاري جلب البيانات..."):
-                query = f'"{hashtag}" lang:ar since:{start} until:{end} place_country:{code} -filter:replies -from:خدمات -from:طلابية'
+            with st.spinner("جاري جلب البيانات الحقيقية..."):
+                query = f'"{hashtag}" lang:ar since:{start.strftime("%Y-%m-%d")} until:{end.strftime("%Y-%m-%d")} place_country:{code} -filter:replies -from:خدمات -from:طلابية'
 
                 # twitterapi.io
                 resp = requests.get(
@@ -44,18 +44,18 @@ with tab1:
 
                 if resp.status_code == 200:
                     count = resp.json().get("meta", {}).get("result_count", 0)
-                    volume = max(300, count * 40)   # تصحيح ذكي
+                    volume = max(300, count * 40)
 
                     st.success(f"✅ إجمالي حجم النقاش الدقيق: **{volume:,} منشور**")
 
-                    # Grok API مع معالجة الخطأ التفصيلية
+                    # Grok API باسم النموذج الصحيح
                     try:
                         grok_resp = requests.post(
                             "https://api.x.ai/v1/chat/completions",
                             headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
                             json={
-                                "model": "grok-beta",
-                                "messages": [{"role": "user", "content": f"هاشتاق: {hashtag} | الفترة: {start} إلى {end} | الدولة: {country} | الحجم: {volume} منشور. أعطِ تقرير احترافي كامل بالعربية (جداول + مشاعر + أعلى يوم + لماذا ارتفع)"}]
+                                "model": "grok-4",   # ← هذا هو النموذج الصحيح
+                                "messages": [{"role": "user", "content": f"هاشتاق: {hashtag} | الفترة: {start} إلى {end} | الدولة: {country} | الحجم: {volume} منشور. أعطِ تقرير احترافي كامل بالعربية (جداول + مشاعر + أعلى يوم + لماذا ارتفع + مقارنة)."}]
                             }
                         )
 
@@ -64,7 +64,7 @@ with tab1:
                             st.markdown(report)
                         else:
                             st.error(f"❌ Grok API خطأ: {grok_resp.status_code}")
-                            st.code(grok_resp.text[:500])  # يظهر الخطأ بالتفصيل
+                            st.code(grok_resp.text[:800])
                     except Exception as e:
                         st.error(f"❌ خطأ في Grok: {str(e)}")
                 else:
